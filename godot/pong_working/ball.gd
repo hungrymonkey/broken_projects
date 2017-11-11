@@ -14,3 +14,9 @@ func reset():
 func _process(delta):
 	position += direction * speed * delta
 	
+func annoy_flip():
+	if get_node('annoy').is_playing():
+		get_node('annoy').stop()
+	else:
+		get_node('annoy').play()
+	
