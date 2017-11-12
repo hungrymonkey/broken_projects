@@ -20,6 +20,7 @@
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static SDL_AudioSpec spec;
+static SDL_AudioSpec spec2;
 static SDL_AudioDeviceID devid_in = 0;
 static SDL_AudioDeviceID devid_out = 0;
 
@@ -76,6 +77,7 @@ loop()
 
     while (SDL_TRUE) {
         Uint8 buf[1024];
+	SDL_Log("queue size %d: ", SDL_GetQueuedAudioSize(devid_in));
         const Uint32 br = SDL_DequeueAudio(devid_in, buf, sizeof (buf));
         SDL_QueueAudio(devid_out, buf, br);
         if (br < sizeof (buf)) {
@@ -85,7 +87,9 @@ loop()
 */
 }
 static void _sdl_cb(void * userdata, unsigned char  * pcm, int len){
-        SDL_QueueAudio(devid_out, pcm, len/4);
+    if (SDL_GetAudioDeviceStatus(devid_in) == SDL_AUDIO_PLAYING) {
+        SDL_QueueAudio(devid_out, pcm, len/sizeof(float));
+    }
 }
 
 int
@@ -123,8 +127,8 @@ main(int argc, char **argv)
     wanted.freq = 44100;
     wanted.format = AUDIO_F32SYS;
     wanted.channels = 1;
-    wanted.samples = 4096;
-    wanted.callback = _sdl_cb;
+    wanted.samples = 960;
+    wanted.callback = NULL;
 
     SDL_zero(spec);
 
@@ -141,13 +145,14 @@ main(int argc, char **argv)
         SDL_Quit();
         exit(1);
     }
-
+    spec2 = spec;
+    spec2.callback = _sdl_cb;
     SDL_Log("Opening capture device %s%s%s...\n",
             devname ? "'" : "",
             devname ? devname : "[[default]]",
             devname ? "'" : "");
 
-    devid_in = SDL_OpenAudioDevice(argv[1], SDL_TRUE, &spec, &spec, 0);
+    devid_in = SDL_OpenAudioDevice(argv[1], SDL_TRUE, &spec2, &spec2, 0);
     if (!devid_in) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't open an audio device for capture: %s!\n", SDL_GetError());
         SDL_Quit();
